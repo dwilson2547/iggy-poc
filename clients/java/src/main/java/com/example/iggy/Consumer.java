@@ -113,7 +113,7 @@ public class Consumer {
         }
     }
 
-    private static String decodePayload(Object payloadObj) {
+    static String decodePayload(Object payloadObj) {
         if (payloadObj instanceof String) {
             // If it's a base64-encoded string
             try {

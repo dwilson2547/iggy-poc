@@ -112,3 +112,48 @@ async fn produce_messages(client: &IggyClient) -> Result<(), Box<dyn Error>> {
         tokio::time::sleep(Duration::from_secs(SEND_INTERVAL_SECS)).await;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn message_payload_serializes_required_fields() {
+        let payload = MessagePayload {
+            id: 1,
+            text: "hello from Rust producer".to_string(),
+            ts: "2024-01-01T00:00:00Z".to_string(),
+        };
+
+        let json = serde_json::to_string(&payload).unwrap();
+
+        assert!(json.contains("\"id\":1"));
+        assert!(json.contains("hello from Rust producer"));
+        assert!(json.contains("\"ts\""));
+    }
+
+    #[test]
+    fn message_payload_deserializes_correctly() {
+        let json = r#"{"id":2,"text":"hello from Rust producer","ts":"2024-01-01T00:00:00Z"}"#;
+
+        let payload: MessagePayload = serde_json::from_str(json).unwrap();
+
+        assert_eq!(payload.id, 2);
+        assert_eq!(payload.text, "hello from Rust producer");
+        assert_eq!(payload.ts, "2024-01-01T00:00:00Z");
+    }
+
+    #[test]
+    fn message_payload_id_increments() {
+        let payloads: Vec<MessagePayload> = (1..=3)
+            .map(|i| MessagePayload {
+                id: i,
+                text: "hello from Rust producer".to_string(),
+                ts: "2024-01-01T00:00:00Z".to_string(),
+            })
+            .collect();
+
+        let ids: Vec<u64> = payloads.iter().map(|p| p.id).collect();
+        assert_eq!(ids, vec![1, 2, 3]);
+    }
+}

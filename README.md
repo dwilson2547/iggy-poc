@@ -25,6 +25,49 @@ This POC demonstrates **simple pub/sub messaging** using:
 
 ---
 
+## Running the Tests
+
+Each client has unit tests that run without a live Iggy server. All tests are also executed automatically by the CI pipeline on every push and pull request.
+
+### Python
+
+```bash
+cd clients/python
+pip install -r requirements.txt   # installs pytest and pytest-asyncio
+python -m pytest tests/ -v
+```
+
+### Java (HTTP client)
+
+```bash
+cd clients/java
+mvn test --batch-mode
+```
+
+### Java (SDK client)
+
+```bash
+cd clients/java-sdk
+mvn test --batch-mode
+```
+
+### Rust
+
+```bash
+cd clients/rust
+cargo test
+```
+
+### TypeScript
+
+```bash
+cd clients/typescript
+npm install
+npm test
+```
+
+---
+
 ## Quick Start
 
 ### 1. Start the Iggy server
@@ -127,22 +170,38 @@ iggy-poc/
 │   ├── python/
 │   │   ├── producer.py              # Python async producer
 │   │   ├── consumer.py              # Python async consumer
-│   │   └── requirements.txt
+│   │   ├── requirements.txt
+│   │   └── tests/
+│   │       ├── test_consumer.py     # Unit tests for consumer (pytest)
+│   │       └── test_producer.py     # Unit tests for producer (pytest)
 │   ├── java/
 │   │   ├── pom.xml                  # Maven configuration
-│   │   └── src/main/java/.../
-│   │       ├── Producer.java        # Java blocking producer
-│   │       └── Consumer.java        # Java blocking consumer
+│   │   └── src/
+│   │       ├── main/java/.../
+│   │       │   ├── Producer.java    # Java blocking producer
+│   │       │   └── Consumer.java    # Java blocking consumer
+│   │       └── test/java/.../
+│   │           └── ConsumerTest.java # Unit tests (JUnit 5)
+│   ├── java-sdk/
+│   │   ├── pom.xml                  # Maven configuration
+│   │   └── src/
+│   │       ├── main/java/.../
+│   │       │   ├── Producer.java    # Java SDK producer
+│   │       │   └── Consumer.java    # Java SDK consumer
+│   │       └── test/java/.../
+│   │           └── MessageSerializationTest.java # Unit tests (JUnit 5)
 │   ├── rust/
 │   │   ├── Cargo.toml               # Cargo configuration
 │   │   └── src/
-│   │       ├── producer.rs          # Rust async producer
+│   │       ├── producer.rs          # Rust async producer (+ #[cfg(test)] module)
 │   │       └── consumer.rs          # Rust async consumer
 │   └── typescript/
 │       ├── package.json             # npm configuration
-│       └── src/
-│           ├── producer.ts          # TypeScript async producer
-│           └── consumer.ts          # TypeScript async consumer
+│       ├── src/
+│       │   ├── producer.ts          # TypeScript async producer
+│       │   └── consumer.ts          # TypeScript async consumer
+│       └── tests/
+│           └── message.test.ts      # Unit tests (vitest)
 └── docs/
     ├── iggy-concepts.md             # Core concept reference
     └── architecture.md              # Server internals + SDK flow
