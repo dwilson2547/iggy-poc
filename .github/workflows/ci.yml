@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  java:
+    name: Java Clients (Maven)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        client: [java, java-sdk]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+          cache: maven
+      - name: Build with Maven
+        working-directory: clients/${{ matrix.client }}
+        run: mvn compile --batch-mode
+
+  typescript:
+    name: TypeScript Client
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: clients/typescript/package-lock.json
+      - name: Install dependencies
+        working-directory: clients/typescript
+        run: npm ci
+      - name: Type-check
+        working-directory: clients/typescript
+        run: npx tsc --noEmit
+
+  python:
+    name: Python Client
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: clients/python/requirements.txt
+      - name: Install dependencies
+        working-directory: clients/python
+        run: pip install -r requirements.txt
+      - name: Check syntax
+        working-directory: clients/python
+        run: python -m py_compile consumer.py producer.py
+
+  rust:
+    name: Rust Client
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            clients/rust/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('clients/rust/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+      - name: Check with Cargo
+        working-directory: clients/rust
+        run: cargo check

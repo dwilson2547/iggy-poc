@@ -1,4 +1,4 @@
-import { Client } from "@iggy.rs/sdk";
+import { Client, ConsumerKind, PollingStrategy } from "@iggy.rs/sdk";
 
 const STREAM_NAME = "demo-stream";
 const TOPIC_NAME = "demo-topic";
@@ -31,8 +31,8 @@ async function consumeMessages(client: Client) {
         streamId: STREAM_NAME,
         topicId: TOPIC_NAME,
         partitionId: PARTITION_ID,
-        consumer: { kind: "Consumer", id: 1 },
-        pollingStrategy: { kind: "Next", value: 0n },
+        consumer: { kind: ConsumerKind.Single, id: 1 },
+        pollingStrategy: PollingStrategy.Next,
         count: MESSAGES_PER_BATCH,
         autocommit: true,
       });
