@@ -1,4 +1,4 @@
-import { Client } from "@iggy.rs/sdk";
+import { Client, Partitioning } from "@iggy.rs/sdk";
 
 const STREAM_NAME = "demo-stream";
 const TOPIC_NAME = "demo-topic";
@@ -49,14 +49,11 @@ async function produceMessages(client: Client) {
       await client.message.send({
         streamId: STREAM_NAME,
         topicId: TOPIC_NAME,
-        partitioning: {
-          kind: "PartitionId",
-          value: PARTITION_ID,
-        },
+        partition: Partitioning.PartitionId(PARTITION_ID),
         messages: [
           {
             id: 0n,
-            payload: Buffer.from(jsonPayload),
+            payload: jsonPayload,
             headers: {},
           },
         ],

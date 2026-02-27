@@ -1,14 +1,9 @@
-use iggy::clients::client::IggyClient;
-use iggy::tcp::client::TcpClient;
-use iggy::tcp::config::TcpClientConfig;
-use iggy::client::{Client, StreamClient, TopicClient, MessageClient, UserClient};
-use iggy::identifier::Identifier;
-use iggy::messages::send_messages::{Message, Partitioning, SendMessages};
+use iggy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::str::FromStr;
 use std::time::Duration;
-use tracing::{info, error};
+use tracing::{error, info};
 use tracing_subscriber;
 
 const STREAM_NAME: &str = "demo-stream";
@@ -28,15 +23,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     tracing_subscriber::fmt::init();
 
     info!("Connecting to Iggy server...");
-    let client = IggyClient::create(
-        TcpClient::create(TcpClientConfig {
-            server_address: "127.0.0.1:8090".to_string(),
-            ..Default::default()
-        })?,
-        None,
-        None,
-    )?;
-    
+    let client = IggyClientBuilder::new()
+        .with_tcp()
+        .with_server_address("127.0.0.1:8090".to_string())
+        .build()?;
+
     client.connect().await?;
     info!("Connected. Logging in...");
     client.login_user("iggy", "iggy").await?;
@@ -49,32 +40,35 @@ async fn main() -> Result<(), Box<dyn Error>> {
 }
 
 async fn init_system(client: &IggyClient) -> Result<(), Box<dyn Error>> {
-    // Create stream if it doesn't exist
-    match client.get_stream(&Identifier::from_str(STREAM_NAME)?).await {
-        Ok(stream) => {
+    let stream_id = Identifier::from_str(STREAM_NAME)?;
+    let topic_id = Identifier::from_str(TOPIC_NAME)?;
+
+    match client.get_stream(&stream_id).await? {
+        Some(stream) => {
             info!("Stream '{}' already exists (id={}).", STREAM_NAME, stream.id);
         }
-        Err(_) => {
-            client.create_stream(STREAM_NAME, None).await?;
+        None => {
+            client.create_stream(STREAM_NAME).await?;
             info!("Stream '{}' created.", STREAM_NAME);
         }
     }
 
-    // Create topic if it doesn't exist
-    match client.get_topic(&Identifier::from_str(STREAM_NAME)?, &Identifier::from_str(TOPIC_NAME)?).await {
-        Ok(topic) => {
+    match client.get_topic(&stream_id, &topic_id).await? {
+        Some(topic) => {
             info!("Topic '{}' already exists (id={}).", TOPIC_NAME, topic.id);
         }
-        Err(_) => {
-            client.create_topic(
-                &Identifier::from_str(STREAM_NAME)?,
-                TOPIC_NAME,
-                1,
-                Default::default(),
-                None,
-                None,
-                None,
-            ).await?;
+        None => {
+            client
+                .create_topic(
+                    &stream_id,
+                    TOPIC_NAME,
+                    1,
+                    Default::default(),
+                    None,
+                    IggyExpiry::NeverExpire,
+                    MaxTopicSize::ServerDefault,
+                )
+                .await?;
             info!("Topic '{}' created.", TOPIC_NAME);
         }
     }
@@ -88,6 +82,10 @@ async fn produce_messages(client: &IggyClient) -> Result<(), Box<dyn Error>> {
         STREAM_NAME, TOPIC_NAME, PARTITION_ID, SEND_INTERVAL_SECS
     );
 
+    let stream_id = Identifier::from_str(STREAM_NAME)?;
+    let topic_id = Identifier::from_str(TOPIC_NAME)?;
+    let partitioning = Partitioning::partition_id(PARTITION_ID);
+
     let mut message_id = 0u64;
     loop {
         message_id += 1;
@@ -98,18 +96,16 @@ async fn produce_messages(client: &IggyClient) -> Result<(), Box<dyn Error>> {
             ts: chrono::Utc::now().to_rfc3339(),
         };
 
-        let json_payload = serde_json::to_string(&payload)?;
-        let message = Message::from_str(&json_payload)?;
+        let json_str = serde_json::to_string(&payload)?;
+        let mut messages = vec![IggyMessage::builder()
+            .payload(json_str.as_bytes().to_vec().into())
+            .build()?];
 
-        let mut send_messages = SendMessages {
-            stream_id: Identifier::from_str(STREAM_NAME)?,
-            topic_id: Identifier::from_str(TOPIC_NAME)?,
-            partitioning: Partitioning::partition_id(PARTITION_ID),
-            messages: vec![message],
-        };
-        
-        match client.send_messages(&mut send_messages).await {
-            Ok(_) => info!("Sent message #{}: {}", message_id, json_payload),
+        match client
+            .send_messages(&stream_id, &topic_id, &partitioning, &mut messages)
+            .await
+        {
+            Ok(_) => info!("Sent message #{}: {}", message_id, json_str),
             Err(e) => error!("Failed to send message #{}: {}", message_id, e),
         }
 
