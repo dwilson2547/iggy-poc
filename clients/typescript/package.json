@@ -1,0 +1,21 @@
+{
+  "name": "iggy-typescript-client",
+  "version": "1.0.0",
+  "description": "TypeScript producer and consumer for Apache Iggy POC",
+  "type": "module",
+  "scripts": {
+    "producer": "tsx src/producer.ts",
+    "consumer": "tsx src/consumer.ts"
+  },
+  "keywords": ["iggy", "messaging", "typescript"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@iggy.rs/sdk": "^1.0.6"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0"
+  }
+}
+

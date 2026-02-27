@@ -1,0 +1,20 @@
+services:
+  iggy:
+    image: apache/iggy:0.6.0
+    container_name: iggy-server
+    security_opt:
+      - seccomp:unconfined
+    ports:
+      - "8090:8090"   # TCP binary (Python SDK)
+      - "3000:3000"   # HTTP REST API
+    volumes:
+      - iggy-data:/iggy/data
+    environment:
+      IGGY_ROOT_USERNAME: iggy
+      IGGY_ROOT_PASSWORD: iggy
+      IGGY_TCP_ADDRESS: 0.0.0.0:8090
+      IGGY_HTTP_ADDRESS: 0.0.0.0:3000
+    restart: unless-stopped
+
+volumes:
+  iggy-data:
