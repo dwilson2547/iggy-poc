@@ -8,11 +8,17 @@
     "consumer": "tsx src/consumer.ts",
     "test": "vitest run"
   },
-  "keywords": ["iggy", "messaging", "typescript"],
+  "keywords": [
+    "iggy",
+    "messaging",
+    "typescript"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@iggy.rs/sdk": "^1.0.6"
+    "@iggy.rs/sdk": "^1.0.6",
+    "avsc": "^5.7.9",
+    "protobufjs": "^8.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -21,4 +27,3 @@
     "vitest": "^1.0.0"
   }
 }
-
