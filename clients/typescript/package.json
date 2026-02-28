@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "producer": "tsx src/producer.ts",
-    "consumer": "tsx src/consumer.ts"
+    "consumer": "tsx src/consumer.ts",
+    "test": "vitest run"
   },
   "keywords": ["iggy", "messaging", "typescript"],
   "author": "",
@@ -16,7 +17,8 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
   }
 }
 

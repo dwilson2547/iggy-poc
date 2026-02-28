@@ -24,9 +24,9 @@ jobs:
           java-version: "17"
           distribution: "temurin"
           cache: maven
-      - name: Build with Maven
+      - name: Build and test with Maven
         working-directory: clients/${{ matrix.client }}
-        run: mvn compile --batch-mode
+        run: mvn test --batch-mode
 
   typescript:
     name: TypeScript Client
@@ -45,6 +45,9 @@ jobs:
       - name: Type-check
         working-directory: clients/typescript
         run: npx tsc --noEmit
+      - name: Run tests
+        working-directory: clients/typescript
+        run: npm test
 
   python:
     name: Python Client
@@ -63,6 +66,9 @@ jobs:
       - name: Check syntax
         working-directory: clients/python
         run: python -m py_compile consumer.py producer.py
+      - name: Run tests
+        working-directory: clients/python
+        run: python -m pytest tests/ -v
 
   rust:
     name: Rust Client
@@ -83,3 +89,6 @@ jobs:
       - name: Check with Cargo
         working-directory: clients/rust
         run: cargo check
+      - name: Run tests
+        working-directory: clients/rust
+        run: cargo test
