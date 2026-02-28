@@ -1,0 +1,11 @@
+{
+  "type": "record",
+  "name": "Event",
+  "namespace": "iggy.example",
+  "doc": "A simple event message used in the Iggy Avro examples.",
+  "fields": [
+    {"name": "id",   "type": "int",    "doc": "Monotonically incrementing message ID."},
+    {"name": "text", "type": "string", "doc": "Human-readable message body."},
+    {"name": "ts",   "type": "string", "doc": "ISO-8601 UTC timestamp of the event."}
+  ]
+}

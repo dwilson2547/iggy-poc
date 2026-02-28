@@ -11,6 +11,22 @@ path = "src/producer.rs"
 name = "consumer"
 path = "src/consumer.rs"
 
+[[bin]]
+name = "avro_producer"
+path = "src/avro_producer.rs"
+
+[[bin]]
+name = "avro_consumer"
+path = "src/avro_consumer.rs"
+
+[[bin]]
+name = "protobuf_producer"
+path = "src/protobuf_producer.rs"
+
+[[bin]]
+name = "protobuf_consumer"
+path = "src/protobuf_consumer.rs"
+
 [dependencies]
 iggy = "0.8"
 tokio = { version = "1", features = ["full"] }
@@ -19,3 +35,9 @@ serde_json = "1"
 chrono = { version = "0.4", features = ["serde"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
+apache-avro = { version = "0.21", features = ["snappy"] }
+prost = "0.14"
+
+[lib]
+name = "iggy_rust_client"
+path = "src/lib.rs"
