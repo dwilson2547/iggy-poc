@@ -1,0 +1,123 @@
+# Default values for the iggy Helm chart.
+# Override these values by passing --values <file> to helm install/upgrade,
+# or by using --set key=value on the command line.
+
+# Number of iggy server replicas.
+# NOTE: iggy does not support multi-replica clustering out of the box.
+# Keep this at 1 unless you know what you are doing.
+replicaCount: 1
+
+image:
+  repository: apache/iggy
+  pullPolicy: IfNotPresent
+  # Overrides the image tag. Defaults to the chart's appVersion.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Whether to create a dedicated ServiceAccount for the pod.
+  create: true
+  # Annotations to add to the ServiceAccount.
+  annotations: {}
+  # The name of the ServiceAccount to use.
+  # If not set and create is true, a name is generated from the chart fullname.
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+
+securityContext:
+  # iggy requires seccomp:unconfined when running io_uring workloads.
+  # Set this to true to add the required seccomp profile override.
+  seccompUnconfined: true
+
+# ── Service ──────────────────────────────────────────────────────────────────
+service:
+  type: ClusterIP
+  # HTTP REST API port
+  httpPort: 3000
+  # TCP binary protocol port (used by Python/Rust/TypeScript SDKs)
+  tcpPort: 8090
+
+# ── Iggy server configuration ────────────────────────────────────────────────
+iggy:
+  # Root user credentials (change these in production — use a Secret)
+  rootUsername: iggy
+  rootPassword: iggy
+
+  # Address the HTTP server listens on inside the container.
+  httpAddress: "0.0.0.0:3000"
+  # Address the TCP server listens on inside the container.
+  tcpAddress: "0.0.0.0:8090"
+
+  # Protocol toggles
+  httpEnabled: true
+  tcpEnabled: true
+  quicEnabled: false
+
+  # Additional environment variables passed directly to the container.
+  # Example:
+  #   extraEnv:
+  #     - name: IGGY_HEARTBEAT_INTERVAL
+  #       value: "5s"
+  extraEnv: []
+
+# ── Credentials stored as a Secret ───────────────────────────────────────────
+# When existingSecret is set the chart will NOT create a new Secret and will
+# instead read rootUsername / rootPassword from the named secret.
+# The secret must contain the keys: username and password.
+existingSecret: ""
+
+# ── Persistent storage ───────────────────────────────────────────────────────
+persistence:
+  enabled: true
+  # storageClass: ""   # Leave empty to use the cluster default StorageClass.
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  # Mount path inside the container where iggy stores its data.
+  mountPath: /iggy/local_data
+
+# ── Resource requests and limits ─────────────────────────────────────────────
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# ── Liveness / readiness probes ──────────────────────────────────────────────
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 15
+  periodSeconds: 20
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+# ── Ingress ───────────────────────────────────────────────────────────────────
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: iggy.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# ── Node scheduling ───────────────────────────────────────────────────────────
+nodeSelector: {}
+tolerations: []
+affinity: {}

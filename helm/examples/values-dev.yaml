@@ -1,0 +1,56 @@
+# values-dev.yaml — Development / local environment
+#
+# Designed for:
+#   • Local Kubernetes clusters (kind, minikube, k3d)
+#   • CI/CD pipelines
+#   • Feature testing with minimal resource footprint
+#
+# Usage:
+#   helm install iggy ../iggy -f values-dev.yaml -n iggy --create-namespace
+
+image:
+  tag: "0.6.0"
+
+# ── Credentials ─────────────────────────────────────────────────────────────
+# Simple credentials are fine for development; never use these in production.
+iggy:
+  rootUsername: iggy
+  rootPassword: iggy
+
+# ── Service ──────────────────────────────────────────────────────────────────
+# ClusterIP keeps the server reachable only from inside the cluster.
+# Use kubectl port-forward to reach it from your laptop.
+service:
+  type: ClusterIP
+
+# ── Persistence ──────────────────────────────────────────────────────────────
+# Small volume — data loss on pod restart is acceptable in dev.
+persistence:
+  enabled: true
+  size: 1Gi
+
+# ── Resources ─────────────────────────────────────────────────────────────────
+# Minimal footprint so the pod fits on small local nodes.
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+# ── Probes ────────────────────────────────────────────────────────────────────
+# More generous timeouts to tolerate slow local startup.
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 30
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 15

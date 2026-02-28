@@ -1,0 +1,16 @@
+apiVersion: v2
+name: iggy
+description: A Helm chart for deploying Apache Iggy — a hyper-efficient persistent message streaming platform.
+type: application
+version: 0.1.0
+appVersion: "0.6.0"
+keywords:
+  - iggy
+  - messaging
+  - streaming
+  - pubsub
+home: https://iggy.apache.org
+sources:
+  - https://github.com/apache/iggy
+maintainers:
+  - name: iggy-poc
