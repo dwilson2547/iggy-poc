@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package iggy.example;
+
+// A simple event message used in the Iggy Protobuf examples.
+message Event {
+  int32  id   = 1; // Monotonically incrementing message ID.
+  string text = 2; // Human-readable message body.
+  string ts   = 3; // ISO-8601 UTC timestamp of the event.
+}

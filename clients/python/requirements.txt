@@ -2,3 +2,5 @@ iggy-py>=0.4.0
 loguru>=0.7.0
 pytest>=7.0.0
 pytest-asyncio>=0.21.0
+fastavro>=1.9.0
+protobuf>=4.25.0
