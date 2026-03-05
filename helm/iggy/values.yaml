@@ -3,8 +3,10 @@
 # or by using --set key=value on the command line.
 
 # Number of iggy server replicas.
-# NOTE: iggy does not support multi-replica clustering out of the box.
-# Keep this at 1 unless you know what you are doing.
+# Iggy supports multi-node clustering via Raft consensus.
+# For a standalone deployment keep this at 1.
+# For a clustered deployment set this to an odd number (3, 5, …) and
+# enable cluster.enabled below.
 replicaCount: 1
 
 image:
@@ -75,7 +77,9 @@ existingSecret: ""
 # ── Persistent storage ───────────────────────────────────────────────────────
 persistence:
   enabled: true
-  # storageClass: ""   # Leave empty to use the cluster default StorageClass.
+  # storageClass: "" — Leave empty string or omit to use the cluster default StorageClass.
+  # Set to a specific class name (e.g. "gp3", "premium-rwo") to override.
+  storageClass: ""
   accessMode: ReadWriteOnce
   size: 10Gi
   # Mount path inside the container where iggy stores its data.
@@ -121,3 +125,17 @@ ingress:
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+# ── Clustering (Raft) ─────────────────────────────────────────────────────────
+# Iggy supports multi-node clustering via the Raft consensus algorithm.
+# When enabled, each pod gets stable DNS via the headless Service and a
+# dedicated PersistentVolume via StatefulSet volumeClaimTemplates.
+cluster:
+  # Set to true to enable Raft-based multi-node clustering.
+  # replicaCount should be an odd number (3, 5, …) for quorum.
+  enabled: false
+  # Port used for internal Raft communication between cluster nodes.
+  internalPort: 9100
+  # Number of replicas each partition's data is written to.
+  # Must be <= replicaCount. Set to at least 2 for data redundancy.
+  replicationFactor: 1

@@ -14,15 +14,17 @@ helm/
 │   └── templates/
 │       ├── _helpers.tpl
 │       ├── NOTES.txt
-│       ├── deployment.yaml
+│       ├── statefulset.yaml
 │       ├── ingress.yaml
 │       ├── persistentvolumeclaim.yaml
 │       ├── secret.yaml
 │       ├── service.yaml
+│       ├── service-headless.yaml
 │       └── serviceaccount.yaml
 └── examples/
     ├── values-dev.yaml            # Local / CI — minimal resources, small volume
-    └── values-production.yaml    # Cloud production — LoadBalancer, large volume, anti-affinity
+    ├── values-production.yaml    # Cloud production — LoadBalancer, large volume, anti-affinity
+    └── values-cluster.yaml       # 3-node Raft cluster — high availability
 ```
 
 ---
@@ -73,14 +75,17 @@ curl -s -H "Authorization: Bearer $TOKEN" http://localhost:3000/streams
 |-----|---------|-------------|
 | `image.repository` | `apache/iggy` | Docker image repository |
 | `image.tag` | *(chart appVersion)* | Image tag; defaults to `0.6.0` |
-| `replicaCount` | `1` | Number of pods (iggy is single-node) |
+| `replicaCount` | `1` | Number of StatefulSet replicas |
 | `service.type` | `ClusterIP` | Kubernetes Service type |
 | `service.httpPort` | `3000` | HTTP REST API port |
 | `service.tcpPort` | `8090` | TCP binary protocol port |
 | `iggy.rootUsername` | `iggy` | Root user username |
 | `iggy.rootPassword` | `iggy` | Root user password |
-| `persistence.enabled` | `true` | Enable PersistentVolumeClaim |
-| `persistence.size` | `10Gi` | PVC size |
+| `persistence.enabled` | `true` | Enable per-pod PersistentVolumeClaim |
+| `persistence.size` | `10Gi` | PVC size per pod |
+| `cluster.enabled` | `false` | Enable Raft multi-node clustering |
+| `cluster.internalPort` | `9100` | Raft internal communication port |
+| `cluster.replicationFactor` | `1` | Number of nodes each partition is replicated to |
 | `resources.requests.cpu` | `100m` | CPU request |
 | `resources.requests.memory` | `128Mi` | Memory request |
 | `resources.limits.cpu` | `500m` | CPU limit |
@@ -103,7 +108,7 @@ helm install iggy ./helm/iggy \
   --create-namespace
 ```
 
-### Production (cloud)
+### Production (cloud, single node)
 
 `LoadBalancer` service, 50 Gi SSD volume, generous resource limits, pod anti-affinity, and credentials stored in an existing Kubernetes Secret.
 
@@ -126,6 +131,41 @@ helm install iggy ./helm/iggy \
 ```
 
 > **Note:** Edit [`examples/values-production.yaml`](examples/values-production.yaml) before deploying — update `persistence.storageClass` to match your cluster's available StorageClass (`kubectl get storageclass`).
+
+### High-availability cluster (3-node Raft)
+
+Iggy supports multi-node clustering via the [Raft consensus algorithm](https://raft.github.io/). Each node participates in leader election and data replication, so the cluster continues operating even if a minority of nodes fail.
+
+| Cluster size | Nodes that can fail | Min `replicationFactor` for safety |
+|:---:|:---:|:---:|
+| 3 | 1 | 2 |
+| 5 | 2 | 3 |
+
+**Step 1 — Create the credentials Secret:**
+
+```bash
+kubectl create secret generic iggy-credentials \
+  --from-literal=username=<YOUR_USERNAME> \
+  --from-literal=password=<YOUR_STRONG_PASSWORD> \
+  --namespace iggy
+```
+
+**Step 2 — Install the chart:**
+
+```bash
+helm install iggy ./helm/iggy \
+  -f ./helm/examples/values-cluster.yaml \
+  --namespace iggy \
+  --create-namespace
+```
+
+The chart automatically:
+- Deploys 3 pods (`iggy-0`, `iggy-1`, `iggy-2`) as a StatefulSet
+- Creates a headless Service so each pod is reachable at a stable DNS address
+- Sets `IGGY_CLUSTER_ENABLED=true`, `IGGY_CLUSTER_NODES`, and `IGGY_CLUSTER_REPLICATION_FACTOR` on every pod
+- Provisions a dedicated 50 Gi PVC per pod
+
+> **Note:** Edit [`examples/values-cluster.yaml`](examples/values-cluster.yaml) before deploying — update `persistence.storageClass` to match your cluster's fast StorageClass.
 
 ---
 
@@ -150,8 +190,8 @@ helm upgrade iggy ./helm/iggy --set image.tag=0.7.0 -n iggy
 ```bash
 helm uninstall iggy -n iggy
 
-# To also remove persistent data:
-kubectl delete pvc iggy-data -n iggy
+# StatefulSet PVCs are not deleted automatically — remove them manually if desired:
+kubectl delete pvc -l app.kubernetes.io/name=iggy -n iggy
 ```
 
 ---
@@ -187,4 +227,11 @@ Check that `securityContext.seccompUnconfined=true` (the default) — iggy uses 
 `kubectl port-forward` only supports TCP, so port-forwarding the TCP binary port works fine:
 ```bash
 kubectl port-forward svc/iggy 8090:8090 -n iggy
+```
+
+**Cluster nodes cannot reach each other**
+Verify the headless Service exists and the Raft port is reachable:
+```bash
+kubectl get svc -n iggy
+kubectl exec iggy-0 -n iggy -- curl -s iggy-1.iggy-headless.iggy.svc.cluster.local:9100
 ```

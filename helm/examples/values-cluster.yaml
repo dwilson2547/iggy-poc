@@ -1,0 +1,105 @@
+# values-cluster.yaml — 3-node Raft cluster
+#
+# Designed for:
+#   • High-availability deployments requiring data redundancy
+#   • Production environments where a single node is not sufficient
+#
+# Architecture:
+#   • 3 iggy pods deployed as a StatefulSet (iggy-0, iggy-1, iggy-2)
+#   • Raft consensus requires an odd number of nodes (3, 5, …) for quorum
+#   • Each pod gets its own PersistentVolume via volumeClaimTemplates
+#   • A headless Service provides stable DNS for Raft peer discovery
+#   • A regular Service exposes HTTP/TCP to clients
+#
+# Before deploying:
+#   1. Create the credentials Secret:
+#        kubectl create secret generic iggy-credentials \
+#          --from-literal=username=<YOUR_USERNAME> \
+#          --from-literal=password=<YOUR_STRONG_PASSWORD> \
+#          -n iggy
+#   2. Replace <YOUR_STORAGE_CLASS> with your cluster's storage class name.
+#
+# Usage:
+#   helm install iggy ../iggy -f values-cluster.yaml -n iggy --create-namespace
+
+image:
+  tag: "0.6.0"
+
+# ── Replica count ─────────────────────────────────────────────────────────────
+# 3 nodes = minimum recommended for Raft quorum.
+replicaCount: 3
+
+# ── Credentials ──────────────────────────────────────────────────────────────
+existingSecret: "iggy-credentials"
+
+iggy:
+  rootUsername: ""
+  rootPassword: ""
+
+  extraEnv:
+    - name: IGGY_HEARTBEAT_ENABLED
+      value: "true"
+    - name: IGGY_HEARTBEAT_INTERVAL
+      value: "5s"
+
+# ── Clustering ────────────────────────────────────────────────────────────────
+cluster:
+  enabled: true
+  # Raft internal communication port
+  internalPort: 9100
+  # Each partition is written to 2 nodes — one node can fail without data loss
+  replicationFactor: 2
+
+# ── Service ───────────────────────────────────────────────────────────────────
+service:
+  type: ClusterIP
+  httpPort: 3000
+  tcpPort: 8090
+
+# ── Persistence ───────────────────────────────────────────────────────────────
+# Each pod receives its own dedicated PVC via StatefulSet volumeClaimTemplates.
+persistence:
+  enabled: true
+  storageClass: "standard"   # Replace with your cluster's fast StorageClass
+  accessMode: ReadWriteOnce
+  size: 50Gi
+  mountPath: /iggy/local_data
+
+# ── Resources ─────────────────────────────────────────────────────────────────
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+
+# ── Probes ─────────────────────────────────────────────────────────────────────
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 20
+  periodSeconds: 20
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  failureThreshold: 3
+
+# ── Pod scheduling ─────────────────────────────────────────────────────────────
+# Spread pods across different nodes to tolerate a node failure.
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+                - iggy
+        topologyKey: kubernetes.io/hostname

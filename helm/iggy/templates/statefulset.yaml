@@ -1,11 +1,12 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: {{ include "iggy.fullname" . }}
   labels:
     {{- include "iggy.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  serviceName: {{ include "iggy.fullname" . }}-headless
   selector:
     matchLabels:
       {{- include "iggy.selectorLabels" . | nindent 6 }}
@@ -44,6 +45,11 @@ spec:
             - name: tcp
               containerPort: {{ .Values.service.tcpPort }}
               protocol: TCP
+            {{- if .Values.cluster.enabled }}
+            - name: cluster
+              containerPort: {{ .Values.cluster.internalPort }}
+              protocol: TCP
+            {{- end }}
           env:
             - name: IGGY_ROOT_USERNAME
               valueFrom:
@@ -65,6 +71,14 @@ spec:
               value: {{ .Values.iggy.tcpAddress | quote }}
             - name: IGGY_QUIC_ENABLED
               value: {{ .Values.iggy.quicEnabled | quote }}
+            {{- if .Values.cluster.enabled }}
+            - name: IGGY_CLUSTER_ENABLED
+              value: "true"
+            - name: IGGY_CLUSTER_NODES
+              value: {{ include "iggy.clusterNodes" . | quote }}
+            - name: IGGY_CLUSTER_REPLICATION_FACTOR
+              value: {{ .Values.cluster.replicationFactor | quote }}
+            {{- end }}
             {{- with .Values.iggy.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -81,14 +95,11 @@ spec:
           volumeMounts:
             - name: data
               mountPath: {{ .Values.persistence.mountPath }}
+      {{- if not .Values.persistence.enabled }}
       volumes:
         - name: data
-          {{- if .Values.persistence.enabled }}
-          persistentVolumeClaim:
-            claimName: {{ include "iggy.pvcName" . }}
-          {{- else }}
           emptyDir: {}
-          {{- end }}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -101,3 +112,19 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+  {{- if .Values.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          {{- include "iggy.labels" . | nindent 10 }}
+      spec:
+        accessModes:
+          - {{ .Values.persistence.accessMode }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
+        {{- if and .Values.persistence.storageClass (ne .Values.persistence.storageClass "") }}
+        storageClassName: {{ .Values.persistence.storageClass }}
+        {{- end }}
+  {{- end }}

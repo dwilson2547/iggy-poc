@@ -75,8 +75,17 @@ otherwise returns the generated secret name for this release.
 {{- end }}
 
 {{/*
-Name of the PersistentVolumeClaim.
+Generate the comma-separated list of Raft cluster node addresses.
+Each entry uses the StatefulSet pod DNS via the headless Service:
+  <release>-<ordinal>.<release>-headless.<namespace>.svc.cluster.local:<port>
 */}}
-{{- define "iggy.pvcName" -}}
-{{- printf "%s-data" (include "iggy.fullname" .) }}
+{{- define "iggy.clusterNodes" -}}
+{{- $nodes := list -}}
+{{- $fullname := include "iggy.fullname" . -}}
+{{- $namespace := .Release.Namespace -}}
+{{- $port := int .Values.cluster.internalPort -}}
+{{- range $i := until (int .Values.replicaCount) -}}
+{{- $nodes = append $nodes (printf "%s-%d.%s-headless.%s.svc.cluster.local:%d" $fullname $i $fullname $namespace $port) -}}
+{{- end -}}
+{{- join "," $nodes -}}
 {{- end }}
