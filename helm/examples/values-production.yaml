@@ -1,0 +1,124 @@
+# values-production.yaml — Production environment
+#
+# Designed for:
+#   • Cloud-managed Kubernetes clusters (EKS, GKE, AKS, etc.)
+#   • Long-lived deployments that require durability and observability
+#
+# Before deploying:
+#   1. Replace <YOUR_STORAGE_CLASS> with your cluster's storage class name.
+#   2. Create the credentials Secret:
+#        kubectl create secret generic iggy-credentials \
+#          --from-literal=username=<USERNAME> \
+#          --from-literal=password=<STRONG_PASSWORD> \
+#          -n iggy
+#   3. Set existingSecret to the Secret name created above.
+#
+# Usage:
+#   helm install iggy ../iggy -f values-production.yaml -n iggy --create-namespace
+
+image:
+  tag: "0.6.0"
+  pullPolicy: IfNotPresent
+
+# ── Credentials ──────────────────────────────────────────────────────────────
+# Do NOT store credentials in this file.
+# Point to a pre-existing Kubernetes Secret instead.
+existingSecret: "iggy-credentials"
+
+# iggy.rootUsername and iggy.rootPassword are ignored when existingSecret is set.
+iggy:
+  rootUsername: ""
+  rootPassword: ""
+
+  # Extra environment variables — e.g., heartbeat tuning.
+  extraEnv:
+    - name: IGGY_HEARTBEAT_ENABLED
+      value: "true"
+    - name: IGGY_HEARTBEAT_INTERVAL
+      value: "5s"
+
+# ── Service ───────────────────────────────────────────────────────────────────
+# LoadBalancer exposes the server to external clients.
+# For internal-only access, use ClusterIP + Ingress for HTTP.
+service:
+  type: LoadBalancer
+  httpPort: 3000
+  tcpPort: 8090
+
+# ── Ingress (optional — for HTTP traffic behind a reverse proxy) ──────────────
+# Enable this block if you prefer Ingress over LoadBalancer for the REST API.
+ingress:
+  enabled: false
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+  hosts:
+    - host: iggy.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: iggy-tls
+      hosts:
+        - iggy.example.com
+
+# ── Persistence ───────────────────────────────────────────────────────────────
+# Use a fast, durable storage class (e.g., SSD-backed gp3 on AWS, premium-rwo on GKE).
+persistence:
+  enabled: true
+  storageClass: "standard"   # Replace with your cluster's fast StorageClass
+  accessMode: ReadWriteOnce
+  size: 50Gi
+  mountPath: /iggy/local_data
+
+# ── Resources ─────────────────────────────────────────────────────────────────
+# Size these according to your expected throughput and message volume.
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+
+# ── Probes ─────────────────────────────────────────────────────────────────────
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 20
+  periodSeconds: 20
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  failureThreshold: 3
+
+# ── Pod scheduling ─────────────────────────────────────────────────────────────
+# Prefer dedicated nodes labelled iggy=true if available.
+nodeSelector: {}
+
+tolerations: []
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - iggy
+          topologyKey: kubernetes.io/hostname
+
+# ── Pod annotations ────────────────────────────────────────────────────────────
+# Useful for Prometheus scraping or other tooling.
+podAnnotations:
+  prometheus.io/scrape: "false"

@@ -1,0 +1,3 @@
+# PersistentVolumeClaims are managed by the StatefulSet volumeClaimTemplates.
+# Each pod receives its own dedicated PVC named data-<release>-<ordinal>.
+# This file is intentionally left empty.

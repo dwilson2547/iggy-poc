@@ -1,0 +1,49 @@
+Thank you for installing {{ .Chart.Name }} (Apache Iggy) version {{ .Chart.AppVersion }}.
+
+Release name: {{ .Release.Name }}
+Namespace:    {{ .Release.Namespace }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Connecting to iggy
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{{- if eq .Values.service.type "ClusterIP" }}
+The iggy server is only accessible from within the cluster.
+To reach it from your local machine, forward the ports:
+
+  # HTTP REST API (port {{ .Values.service.httpPort }})
+  kubectl port-forward svc/{{ include "iggy.fullname" . }} {{ .Values.service.httpPort }}:{{ .Values.service.httpPort }} -n {{ .Release.Namespace }}
+
+  # TCP binary protocol (port {{ .Values.service.tcpPort }})
+  kubectl port-forward svc/{{ include "iggy.fullname" . }} {{ .Values.service.tcpPort }}:{{ .Values.service.tcpPort }} -n {{ .Release.Namespace }}
+
+{{- else if eq .Values.service.type "LoadBalancer" }}
+It may take a few minutes for the LoadBalancer IP to become available.
+Watch the status with:
+
+  kubectl get svc {{ include "iggy.fullname" . }} -n {{ .Release.Namespace }} --watch
+
+Once the EXTERNAL-IP is assigned, connect to:
+  HTTP REST API : http://<EXTERNAL-IP>:{{ .Values.service.httpPort }}
+  TCP protocol  : <EXTERNAL-IP>:{{ .Values.service.tcpPort }}
+
+{{- else if eq .Values.service.type "NodePort" }}
+Get the Node IP and ports with:
+
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  export HTTP_PORT=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "iggy.fullname" . }} -o jsonpath="{.spec.ports[?(@.name=='http')].nodePort}")
+  export TCP_PORT=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "iggy.fullname" . }} -o jsonpath="{.spec.ports[?(@.name=='tcp')].nodePort}")
+  echo "HTTP: http://$NODE_IP:$HTTP_PORT   TCP: $NODE_IP:$TCP_PORT"
+{{- end }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Quick health-check (after port-forwarding HTTP)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  TOKEN=$(curl -s -X POST http://localhost:{{ .Values.service.httpPort }}/users/login \
+    -H 'Content-Type: application/json' \
+    -d '{"username":"iggy","password":"iggy"}' \
+    | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
+  curl -s -H "Authorization: Bearer $TOKEN" http://localhost:{{ .Values.service.httpPort }}/streams
+  # → []  (empty list — server is up)

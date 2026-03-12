@@ -70,6 +70,8 @@ npm test
 
 ## Quick Start
 
+### Option 1: Docker Compose (local development)
+
 ### 1. Start the Iggy server
 
 ```bash
@@ -88,6 +90,20 @@ TOKEN=$(curl -s -X POST http://localhost:3000/users/login \
 curl -s -H "Authorization: Bearer $TOKEN" http://localhost:3000/streams
 # → []  (empty — no streams yet, but server is up)
 ```
+
+### Option 2: Kubernetes with Helm
+
+```bash
+# Install with development defaults
+helm install iggy ./helm/iggy --namespace iggy --create-namespace
+
+# Port-forward the HTTP port and verify
+kubectl port-forward svc/iggy 3000:3000 -n iggy
+```
+
+See [`helm/README.md`](helm/README.md) for full Helm instructions, including production configurations with persistent storage and external access.
+
+---
 
 ### 2. Run the clients
 
@@ -166,6 +182,15 @@ iggy-poc/
 ├── README.md
 ├── server/
 │   └── docker-compose.yml           # Iggy server (TCP:8090, HTTP+WS:3000)
+├── helm/
+│   ├── README.md                    # Helm deployment instructions
+│   ├── iggy/                        # Helm chart for the iggy server
+│   │   ├── Chart.yaml
+│   │   ├── values.yaml              # Default values
+│   │   └── templates/               # Kubernetes manifest templates
+│   └── examples/
+│       ├── values-dev.yaml          # Development / local config
+│       └── values-production.yaml  # Production config
 ├── clients/
 │   ├── python/
 │   │   ├── producer.py              # Python async producer

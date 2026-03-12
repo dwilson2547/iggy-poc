@@ -1,0 +1,27 @@
+# Headless Service — required by the StatefulSet for stable per-pod DNS.
+# Each pod is reachable at:
+#   <release>-<ordinal>.<release>-headless.<namespace>.svc.cluster.local
+# This is used as the Raft cluster node address list when cluster.enabled=true.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "iggy.fullname" . }}-headless
+  labels:
+    {{- include "iggy.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: tcp
+      port: {{ .Values.service.tcpPort }}
+      targetPort: tcp
+      protocol: TCP
+    {{- if .Values.cluster.enabled }}
+    - name: cluster
+      port: {{ .Values.cluster.internalPort }}
+      targetPort: cluster
+      protocol: TCP
+    {{- end }}
+  selector:
+    {{- include "iggy.selectorLabels" . | nindent 4 }}
